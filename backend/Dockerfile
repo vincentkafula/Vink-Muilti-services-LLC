@@ -1,8 +1,8 @@
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
-COPY backend/pom.xml .
+COPY pom.xml .
 RUN mvn -B dependency:go-offline
-COPY backend/src ./src
+COPY src ./src
 RUN mvn -B clean package -DskipTests
 
 FROM eclipse-temurin:21-jre-jammy

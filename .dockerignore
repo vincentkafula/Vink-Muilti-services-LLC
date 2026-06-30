@@ -2,12 +2,10 @@ node_modules
 dist
 .git
 .github
-backend/target
-*.md
-src
-public
-plans
+backend
+server
 supabase
+plans
 guidelines
-*.png
-*.jpg
+*.md
+*.pdf

@@ -1,0 +1,28 @@
+# ─── Build stage ──────────────────────────────────────────────────────────────
+FROM node:20-alpine AS build
+WORKDIR /app
+
+# Build-time API URLs, baked into the static bundle by Vite.
+# Set these in the Railway frontend service variables to your backend's
+# public URL, e.g. https://vink-backend.up.railway.app
+ARG VITE_API_URL
+ARG VITE_WS_URL
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_WS_URL=${VITE_WS_URL}
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# ─── Runtime stage ────────────────────────────────────────────────────────────
+FROM node:20-alpine
+WORKDIR /app
+RUN npm install -g serve@14
+
+COPY --from=build /app/dist ./dist
+
+EXPOSE 4173
+# -s enables SPA fallback (all routes serve index.html)
+CMD ["serve", "-s", "dist", "-l", "4173"]
