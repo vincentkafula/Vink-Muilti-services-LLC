@@ -498,11 +498,17 @@ function ProfileScreen() {
 
 // ─── Passenger list + cash entry screen ──────────────────────────────────────
 function PassengersScreen() {
-  // Supabase edge function URL for financial data
-  const { projectId: pid } = await import("../../../../utils/supabase/info").catch(() => ({ projectId: "" }));
-  const API = pid
-    ? `https://${pid}.supabase.co/functions/v1/make-server-3f39932e/financial`
-    : ((import.meta as { env: Record<string,string> }).env?.VITE_API_URL ?? "http://localhost:3001") + "/api/financial";
+  // Supabase edge function URL for financial data (resolved lazily, since
+  // dynamic import() can't be awaited at the top level of a component body)
+  const fallbackApi = ((import.meta as { env: Record<string,string> }).env?.VITE_API_URL ?? "http://localhost:3001") + "/api/financial";
+  const resolveApi = async (): Promise<string> => {
+    try {
+      const { projectId: pid } = await import("../../../../utils/supabase/info");
+      return pid ? `https://${pid}.supabase.co/functions/v1/make-server-3f39932e/financial` : fallbackApi;
+    } catch {
+      return fallbackApi;
+    }
+  };
   const [trips, setTrips] = useState<Record<string,unknown>[]>([
     { passengerName: "Nomsa Zulu",      passengerCard: "**** 8842", fareAmount: 14.00, paymentMethod: "card",  tapTimestamp: new Date(Date.now()-3600000).toISOString() },
     { passengerName: "Sipho Khumalo",   passengerCard: "**** 3317", fareAmount: 14.00, paymentMethod: "card",  tapTimestamp: new Date(Date.now()-7200000).toISOString() },
@@ -521,7 +527,10 @@ function PassengersScreen() {
 
   const addCash = async () => {
     const trip = { passengerName: cashName || null, passengerCard: null, fareAmount: +cashAmt, paymentMethod: "cash", tapTimestamp: new Date().toISOString() };
-    try { await fetch(`${API}/trips`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ driverId: "drv-001", vehicleReg: "CA 847-891", routeName: "Current route", ...trip }) }); } catch {}
+    try {
+      const API = await resolveApi();
+      await fetch(`${API}/trips`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ driverId: "drv-001", vehicleReg: "CA 847-891", routeName: "Current route", ...trip }) });
+    } catch {}
     setTrips(prev => [trip, ...prev]);
     setCashAdded(true); setCashAmt("14"); setCashName(""); setShowCash(false);
     setTimeout(() => setCashAdded(false), 2000);
